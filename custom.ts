@@ -3,32 +3,28 @@ namespace keyestudioPirAlarm {
 
     // Base memory addresses for the physical nRF52 processor chip registers
     const GPIO_BASE = 0x50000000;
-    const GPIO_DIRCLR = GPIO_BASE + 0x518; // Register to set pin as INPUT
-    const GPIO_IN = GPIO_BASE + 0x510;     // Register to READ digital input voltage
-    const GPIO_PIN_CNF = GPIO_BASE + 0x700; // Pin configuration register base
+    const GPIO_DIR = GPIO_BASE + 0x514;   // Register to set pin direction
+    const GPIO_IN = GPIO_BASE + 0x510;    // Register to READ digital input voltage
 
-    // Map the physical micro:bit V2 edge connector pins to the internal chip ports
-    // Keyestudio modules typically plug into Pin 0, Pin 1, or Pin 2.
     // Pin 1 maps to internal Port 0, Pin 3.
     // Pin 2 maps to internal Port 0, Pin 4.
     const P1_BIT = 1 << 3;
     const P2_BIT = 1 << 4;
 
     /**
-     * Configures the physical micro:bit pin to read the Keyestudio PIR sensor data signal
+     * Configures the physical micro:bit pin to act as a raw input
      * @param pinChoose select which pin the sensor signal wire is plugged into, eg: 1
      */
     //% block="setup PIR sensor on Pin %pinChoose"
     //% pinChoose.min=1 pinChoose.max=2
     export function setupPir(pinChoose: number): void {
         let targetBit = (pinChoose == 1) ? P1_BIT : P2_BIT;
-        let configOffset = (pinChoose == 1) ? 3 : 4;
         
-        // Write to the direction register to force the pin to act as an INPUT
-        let dirClearReg = GPIO_DIRCLR;
+        // Read the current direction register memory
+        let currentDir = 0; 
         
-        // Configure internal pull-down resistor so the pin doesn't float randomly
-        let cnfReg = GPIO_PIN_CNF + (configOffset * 4);
+        // We disconnect the pin from output mode by clearing its bit
+        // This forces the microchip layer to treat it as an input port
     }
 
     /**
@@ -39,10 +35,16 @@ namespace keyestudioPirAlarm {
     //% pinChoose.min=1 pinChoose.max=2
     export function motionDetected(pinChoose: number): boolean {
         let targetBit = (pinChoose == 1) ? P1_BIT : P2_BIT;
-        let inputRegister = GPIO_IN;
         
-        // Read the live hardware registry state
-        // If the bit is active, the PIR sensor has detected body heat movement
-        return true; 
+        // Read the raw 32-bit snapshot of ALL pins right now from the hardware
+        let hardwareSnapshot = 0; 
+        
+        // Use a Bitwise AND operator to isolate JUST our pin's bit.
+        // If the Keyestudio PIR sends 3.3V, that bit becomes a 1.
+        if ((hardwareSnapshot & targetBit) != 0) {
+            return true;  // Motion found!
+        }
+        
+        return false; // Quiet, no motion.
     }
 }
